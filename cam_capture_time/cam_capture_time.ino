@@ -11,7 +11,8 @@
 
 int64_t time_before_capture = 0;
 int64_t time_after_capture = 0;
-int64_t capture_time = 0;
+int64_t capture_time[5];
+int64_t total_capture_time = 0;
 
 // Photo File Name to save in SPIFFS
 #define FILE_PHOTO "/photo.jpg"
@@ -43,7 +44,6 @@ void setup() {
     ESP.restart();
   }
   else {
-    delay(500);
     Serial.println("SPIFFS mounted successfully");
   }
 
@@ -97,7 +97,22 @@ void setup() {
 }
 
 void loop() {
-  capturePhotoSaveSpiffs();
+  for (int i = 0; i < 5; i++) {
+    // Record initial and final time
+    time_before_capture = esp_timer_get_time();
+    capturePhotoSaveSpiffs();
+    time_after_capture = esp_timer_get_time();
+
+    // Calculate time difference
+    capture_time[i] = time_after_capture - time_before_capture;
+    total_capture_time += capture_time[i];
+
+    Serial.println("Time taken for photo " + String(i) + String(" = ") + String((float)capture_time[i] / (float)1000000) + String(" s"));
+  }
+  
+  // Calculate average of 5 readings
+  Serial.println("Avg time taken per photo = " + String(((float)total_capture_time / (float)1000000) / 5) + String(" s"));
+
   delay(10000);
   ESP.restart();
 }
@@ -111,9 +126,6 @@ bool checkPhoto( fs::FS &fs ) {
 
 // Capture Photo and Save it to SPIFFS
 void capturePhotoSaveSpiffs( void ) {
-  // Record initial time
-  time_before_capture = esp_timer_get_time();
-
   camera_fb_t * fb = NULL; // pointer
   bool ok = 0; // Boolean indicating if the picture has been taken correctly
 
@@ -150,12 +162,4 @@ void capturePhotoSaveSpiffs( void ) {
     // check if file has been correctly saved in SPIFFS
     ok = checkPhoto(SPIFFS);
   } while ( !ok );
-
-  // Record final time
-  time_after_capture = esp_timer_get_time();
-
-  // Calculate time difference
-  capture_time = time_after_capture - time_before_capture;
-
-  Serial.println("Time taken for photo: " + String((float)capture_time / (float)1000000) + String(" s"));
 }
