@@ -14,6 +14,8 @@ int64_t time_after_capture = 0;
 int64_t capture_time[5];
 int64_t total_capture_time = 0;
 
+int64_t total_file_size = 0;
+
 // Photo File Name to save in SPIFFS
 #define FILE_PHOTO "/photo.jpg"
 
@@ -112,16 +114,24 @@ void loop() {
   
   // Calculate average of 5 readings
   Serial.println("Avg time taken per photo = " + String(((float)total_capture_time / (float)1000000) / 5) + String(" s"));
+  Serial.println("Ave file size in bytes: " + String((float)total_file_size / 5));
 
-  delay(10000);
-  ESP.restart();
+  while(true) {
+    delay(5000);
+  }
 }
 
 // Check if photo capture was successful
 bool checkPhoto( fs::FS &fs ) {
   File f_pic = fs.open( FILE_PHOTO );
   unsigned int pic_sz = f_pic.size();
-  return ( pic_sz > 100 );
+
+  if (pic_sz > 100) {
+    total_file_size += pic_sz;
+    return true;
+  } else {
+    return false;
+  }
 }
 
 // Capture Photo and Save it to SPIFFS
