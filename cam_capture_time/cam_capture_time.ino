@@ -9,10 +9,36 @@
 #include <SPIFFS.h>
 #include <FS.h>
 
+#define uS_TO_S_FACTOR 1000000ULL /* Conversion factor for micro seconds to seconds */
+#define TIME_TO_SLEEP  1          /* Time ESP32 will go to sleep (in seconds) */
+
 int64_t time_before_capture = 0;
 int64_t time_after_capture = 0;
 int64_t capture_time[5];
 int64_t total_capture_time = 0;
+
+framesize_t fs_config[] = {
+  FRAMESIZE_UXGA,   
+  FRAMESIZE_QVGA,
+  FRAMESIZE_CIF,
+  FRAMESIZE_VGA,
+  FRAMESIZE_SVGA,
+  FRAMESIZE_XGA,
+  FRAMESIZE_SXGA
+};
+
+String fs_name[] = {
+  "FRAMESIZE_UXGA",
+  "FRAMESIZE_QVGA",
+  "FRAMESIZE_CIF",
+  "FRAMESIZE_VGA",
+  "FRAMESIZE_SVGA",
+  "FRAMESIZE_XGA",
+  "FRAMESIZE_SXGA"
+};
+
+RTC_DATA_ATTR int bootCount = 0;
+RTC_DATA_ATTR float fs_avg_time[7];
 
 // Photo File Name to save in SPIFFS
 #define FILE_PHOTO "/photo.jpg"
@@ -43,9 +69,6 @@ void setup() {
     Serial.println("An Error has occurred while mounting SPIFFS");
     ESP.restart();
   }
-  else {
-    Serial.println("SPIFFS mounted successfully");
-  }
 
   // Turn-off the 'brownout detector'
   WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
@@ -74,7 +97,7 @@ void setup() {
   config.pixel_format = PIXFORMAT_JPEG;
 
   if (psramFound()) {
-    config.frame_size = FRAMESIZE_UXGA;
+    config.frame_size = FRAMESIZE_VGA;
     config.jpeg_quality = 10;
     config.fb_count = 2;
   } else {
@@ -82,6 +105,18 @@ void setup() {
     config.jpeg_quality = 12;
     config.fb_count = 1;
   }
+
+  /*
+  The frame size can be set to one of these options:
+
+    FRAMESIZE_UXGA (1600 x 1200)
+    FRAMESIZE_QVGA (320 x 240)
+    FRAMESIZE_CIF (352 x 288)
+    FRAMESIZE_VGA (640 x 480)
+    FRAMESIZE_SVGA (800 x 600)
+    FRAMESIZE_XGA (1024 x 768)
+    FRAMESIZE_SXGA (1280 x 1024)
+  */
 
   Serial.println("psramFound(): " + String(psramFound()));
   Serial.println("frame size: " + String(config.frame_size));
@@ -111,10 +146,25 @@ void loop() {
   }
   
   // Calculate average of 5 readings
-  Serial.println("Avg time taken per photo = " + String(((float)total_capture_time / (float)1000000) / 5) + String(" s"));
+  fs_avg_time[bootCount] = ((float)total_capture_time / (float)1000000) / 5;
+  Serial.println("Avg time taken per photo = " + String(fs_avg_time[bootCount]) + String(" s"));
 
-  delay(10000);
-  ESP.restart();
+  bootCount++;
+
+  if (bootCount >= 6) {
+    Serial.println("Framesize | Average time taken (s)");
+    for (int i = 0; i < 7; i++) {
+      Serial.println(fs_config[i] + " " + String(fs_avg_time[i]));
+    }
+    while(true) {
+      // Program completed. Loop forever.
+    }
+  }
+
+  Serial.println("Going into deep sleep...");
+  esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
+  Serial.flush();
+  esp_deep_sleep_start();
 }
 
 // Check if photo capture was successful
