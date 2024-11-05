@@ -17,6 +17,7 @@ All average readings are based on the average of five successive captures, with 
 |640 x 480 (VGA)|0.29|9845|
 |352 x 288 (CIF)|0.17|5625|
 |320 x 240 (QVGA)|0.17|4009|
+
 A similar test can be conducted with different values of JPEG quality.
 
 JPEG quality can be varied from 0 - 63, with 0 being the highest quality, 63 being lowest, in the setup configuration.
